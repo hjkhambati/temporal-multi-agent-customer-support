@@ -89,9 +89,7 @@ async def main():
             query_parent_workflow_state
         ],
         max_concurrent_activities=50,
-        max_concurrent_workflow_tasks=100,
-        max_concurrent_activity_task_pollers=10,
-        max_concurrent_workflow_task_pollers=5
+        max_concurrent_workflow_tasks=100
     )
     print("Starting multi-agent customer support worker...")
     await worker.run()
