@@ -1,0 +1,84 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Temporal
+.temporal/
+
+# Persistent Data (generated at runtime)
+temporal/data/persistence_data/
+temporal/data/persistent_mock_data/
+
+# Streamlit
+.streamlit/
+
+# Playwright
+.playwright-mcp/
+playwright-state.json
+
+# Logs
+*.log
+logs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Backup files
+*.bak
+*_backup.*
+*_old.*
+README_OLD_BACKUP.md
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# GitHub specific files
+.github/
+
+# Markdown files (except README.md)
+*.md
+!README.md
