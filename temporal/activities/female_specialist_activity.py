@@ -7,17 +7,12 @@ from temporalio import activity
 
 from activities.utils import capture_llm_history
 from data.agent_models import FemaleSpecialistInput, FemaleSpecialistOutput
+from data.base_models import AgentType
 
-# Import tools
-from activities.tools.female_specialist_tools import (
-    list_female_shirts_inventory,
-    get_female_product_details,
-    get_female_measurement_requirements,
-    validate_female_measurements,
-    record_female_measurements,
-    retrieve_female_measurements,
-    recommend_size_female
-)
+# Import MCP manager for dynamic tool loading
+from mcp_integration import mcp_manager
+
+# Import static tools (user interaction tools)
 from activities.tools.user_interaction_tools import ask_user_question, validate_user_response, set_workflow_context
 
 class FemaleSpecialistResponse(dspy.Signature):
@@ -74,20 +69,19 @@ async def female_specialist_activity(input_data: FemaleSpecialistInput) -> Femal
         agent_type="FEMALE_SPECIALIST"
     )
     
-    # Create React module with female specialist tools + user interaction
+    # Get tools from MCP servers for this agent type
+    static_tools = [ask_user_question, validate_user_response]
+    
+    all_tools = await mcp_manager.get_tools_for_agent(
+        AgentType.FEMALE_SPECIALIST,
+        include_static_tools=static_tools
+    )
+    activity.logger.info(f"Female specialist using {len(all_tools)} tools from MCP")
+    
+    # Create React module with dynamically loaded tools
     female_react = dspy.ReAct(
         FemaleSpecialistResponse,
-        tools=[
-            list_female_shirts_inventory,  # List available female shirts/blouses
-            get_female_product_details,  # Get specific product details
-            get_female_measurement_requirements,  # Get measurement requirements
-            validate_female_measurements,  # Validate measurements
-            record_female_measurements,  # Save measurements to file
-            retrieve_female_measurements,  # Retrieve saved measurements
-            recommend_size_female,  # Recommend size based on measurements
-            ask_user_question,  # Ask clarifying questions to customer
-            validate_user_response  # Validate customer responses
-        ]
+        tools=all_tools
     )
     
     # Convert customer_profile dict to string for ReAct compatibility

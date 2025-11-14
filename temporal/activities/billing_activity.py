@@ -7,17 +7,12 @@ from temporalio import activity
 
 from activities.utils import capture_llm_history
 from data.agent_models import BillingInput, BillingOutput
+from data.base_models import AgentType
 
-# Import tools
-from activities.tools.billing_tools import (
-    create_bill_from_conversation,
-    calculate_purchase_total,
-    apply_discount,
-    get_customer_tier_discount,
-    process_payment,
-    generate_invoice,
-    check_payment_status
-)
+# Import MCP manager for dynamic tool loading
+from mcp_integration import mcp_manager
+
+# Import static tools (user interaction tools)
 from activities.tools.user_interaction_tools import ask_user_question, validate_user_response, set_workflow_context
 
 class BillingResponse(dspy.Signature):
@@ -65,20 +60,19 @@ async def billing_activity(input_data: BillingInput) -> BillingOutput:
         agent_type="BILLING"
     )
     
-    # Create React module with billing tools + user interaction
+    # Get tools from MCP servers for this agent type
+    static_tools = [ask_user_question, validate_user_response]
+    
+    all_tools = await mcp_manager.get_tools_for_agent(
+        AgentType.BILLING,
+        include_static_tools=static_tools
+    )
+    activity.logger.info(f"Billing agent using {len(all_tools)} tools from MCP")
+    
+    # Create React module with dynamically loaded tools
     billing_react = dspy.ReAct(
         BillingResponse,
-        tools=[
-            create_bill_from_conversation,
-            calculate_purchase_total,
-            apply_discount,
-            get_customer_tier_discount,
-            process_payment,
-            generate_invoice,
-            check_payment_status,
-            ask_user_question,
-            validate_user_response
-        ]
+        tools=all_tools
     )
     
     # Convert customer_profile dict to string for ReAct compatibility

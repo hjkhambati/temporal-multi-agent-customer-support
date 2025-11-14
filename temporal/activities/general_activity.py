@@ -7,9 +7,12 @@ from temporalio import activity
 
 from activities.utils import capture_llm_history
 from data.agent_models import GeneralSupportInput, GeneralSupportOutput
+from data.base_models import AgentType
 
-# Import tools
-from activities.tools.general_tools import search_faq_tool, get_account_info, update_customer_preferences, schedule_callback, create_support_ticket, get_business_hours, check_service_status
+# Import MCP manager for dynamic tool loading
+from mcp_integration import mcp_manager
+
+# Import static tools (user interaction tools)
 from activities.tools.user_interaction_tools import ask_user_question, validate_user_response, set_workflow_context
 
 class GeneralSupportResponse(dspy.Signature):
@@ -56,20 +59,19 @@ async def general_support_activity(input_data: GeneralSupportInput) -> GeneralSu
         agent_type="GENERAL_SUPPORT"
     )
     
-    # Create React module with general support tools + user interaction - agent will autonomously use tools as needed
+    # Get tools from MCP servers for this agent type
+    static_tools = [ask_user_question, validate_user_response]
+    
+    all_tools = await mcp_manager.get_tools_for_agent(
+        AgentType.GENERAL_SUPPORT,
+        include_static_tools=static_tools
+    )
+    activity.logger.info(f"General support using {len(all_tools)} tools from MCP")
+    
+    # Create React module with dynamically loaded tools
     general_react = dspy.ReAct(
         GeneralSupportResponse,
-        tools=[
-            search_faq_tool, 
-            get_account_info, 
-            update_customer_preferences, 
-            schedule_callback, 
-            create_support_ticket, 
-            get_business_hours, 
-            check_service_status,
-            ask_user_question,  # Allow agent to ask clarifying questions
-            validate_user_response
-        ]
+        tools=all_tools
     )
     
     # Convert customer_profile dict to string for ReAct compatibility

@@ -18,8 +18,7 @@ class BillingAgent:
         result = await workflow.execute_activity(
             billing_activity,
             input_data,
-            start_to_close_timeout=timedelta(minutes=5),
-            retry_policy=workflow.RetryPolicy(maximum_attempts=2)
+            start_to_close_timeout=timedelta(minutes=5)
         )
 
         workflow.upsert_memo({"llm-history": result.llm_history})

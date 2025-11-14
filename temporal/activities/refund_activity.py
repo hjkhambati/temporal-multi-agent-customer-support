@@ -7,9 +7,12 @@ from temporalio import activity
 
 from activities.utils import capture_llm_history
 from data.agent_models import RefundSpecialistInput, RefundSpecialistOutput
+from data.base_models import AgentType
 
-# Import tools
-from activities.tools.refund_tools import check_refund_eligibility, calculate_refund_amount, initiate_refund, generate_return_label, check_return_status, get_return_policy_details
+# Import MCP manager for dynamic tool loading
+from mcp_integration import mcp_manager
+
+# Import static tools (user interaction tools)
 from activities.tools.user_interaction_tools import ask_user_question, validate_user_response, set_workflow_context
 
 class RefundSpecialistResponse(dspy.Signature):
@@ -66,19 +69,19 @@ async def refund_specialist_activity(input_data: RefundSpecialistInput) -> Refun
         agent_type="REFUND_SPECIALIST"
     )
     
-    # Create React module with refund tools + user interaction - agent will autonomously use tools and policies
+    # Get tools from MCP servers for this agent type
+    static_tools = [ask_user_question, validate_user_response]
+    
+    all_tools = await mcp_manager.get_tools_for_agent(
+        AgentType.REFUND_SPECIALIST,
+        include_static_tools=static_tools
+    )
+    activity.logger.info(f"Refund specialist using {len(all_tools)} tools from MCP")
+    
+    # Create React module with dynamically loaded tools
     refund_react = dspy.ReAct(
         RefundSpecialistResponse,
-        tools=[
-            check_refund_eligibility, 
-            calculate_refund_amount, 
-            initiate_refund, 
-            generate_return_label, 
-            check_return_status, 
-            get_return_policy_details,
-            ask_user_question,  # Allow agent to ask clarifying questions
-            validate_user_response
-        ]
+        tools=all_tools
     )
     
     # Convert customer_profile dict to string for ReAct compatibility

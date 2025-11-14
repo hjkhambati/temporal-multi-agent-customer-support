@@ -7,9 +7,12 @@ from temporalio import activity
 
 from activities.utils import capture_llm_history
 from data.agent_models import TechnicalSpecialistInput, TechnicalSpecialistOutput
+from data.base_models import AgentType
 
-# Import tools
-from activities.tools.technical_tools import search_knowledge_base_tool, get_product_specs, check_warranty, create_escalation_ticket, run_diagnostics, check_firmware_updates
+# Import MCP manager for dynamic tool loading
+from mcp_integration import mcp_manager
+
+# Import static tools (user interaction tools)
 from activities.tools.user_interaction_tools import ask_user_question, validate_user_response, set_workflow_context
 
 class TechnicalSpecialistResponse(dspy.Signature):
@@ -62,19 +65,19 @@ async def technical_specialist_activity(input_data: TechnicalSpecialistInput) ->
         agent_type="TECHNICAL_SPECIALIST"
     )
     
-    # Create React module with technical tools + user interaction - agent will autonomously determine what tools to use
+    # Get tools from MCP servers for this agent type
+    static_tools = [ask_user_question, validate_user_response]
+    
+    all_tools = await mcp_manager.get_tools_for_agent(
+        AgentType.TECHNICAL_SPECIALIST,
+        include_static_tools=static_tools
+    )
+    activity.logger.info(f"Technical specialist using {len(all_tools)} tools from MCP")
+    
+    # Create React module with dynamically loaded tools
     tech_react = dspy.ReAct(
         TechnicalSpecialistResponse,
-        tools=[
-            search_knowledge_base_tool, 
-            get_product_specs, 
-            check_warranty, 
-            create_escalation_ticket, 
-            run_diagnostics, 
-            check_firmware_updates,
-            ask_user_question,  # Allow agent to ask clarifying questions
-            validate_user_response
-        ]
+        tools=all_tools
     )
     
     # Convert customer_profile dict to string for ReAct compatibility

@@ -45,11 +45,24 @@ import dspy
 from dotenv import load_dotenv
 load_dotenv()
 
+# Import MCP connection manager
+from mcp_integration import mcp_manager
+
 TEMPORAL_ADDRESS = os.getenv("TEMPORAL_ADDRESS")
 TASK_QUEUE = os.getenv("TASK_QUEUE")
 
 async def main():
     dspy.configure(lm=dspy.LM("gemini/gemini-2.5-flash"))
+    
+    # Initialize MCP connections before starting worker
+    print("Initializing MCP server connections...")
+    try:
+        await mcp_manager.initialize_connections()
+        print(f"✓ MCP initialized: {len(mcp_manager.connected_servers)} servers connected")
+    except Exception as e:
+        print(f"⚠ Warning: MCP initialization failed: {e}")
+        print("Worker will continue with fallback to static tools")
+    
     client = await Client.connect(TEMPORAL_ADDRESS, namespace="default")
     worker = Worker(
         client,
@@ -92,7 +105,14 @@ async def main():
         max_concurrent_workflow_tasks=100
     )
     print("Starting multi-agent customer support worker...")
-    await worker.run()
+    
+    try:
+        await worker.run()
+    finally:
+        # Clean shutdown of MCP connections
+        print("Shutting down MCP connections...")
+        await mcp_manager.close_all_connections()
+        print("✓ Worker shutdown complete")
 
 
 if __name__ == "__main__":

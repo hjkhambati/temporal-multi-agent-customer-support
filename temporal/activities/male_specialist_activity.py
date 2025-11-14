@@ -7,17 +7,12 @@ from temporalio import activity
 
 from activities.utils import capture_llm_history
 from data.agent_models import MaleSpecialistInput, MaleSpecialistOutput
+from data.base_models import AgentType
 
-# Import tools
-from activities.tools.male_specialist_tools import (
-    list_male_shirts_inventory,
-    get_male_product_details,
-    get_male_measurement_requirements,
-    validate_male_measurements,
-    record_male_measurements,
-    retrieve_male_measurements,
-    recommend_size_male
-)
+# Import MCP manager for dynamic tool loading
+from mcp_integration import mcp_manager
+
+# Import static tools (user interaction tools)
 from activities.tools.user_interaction_tools import ask_user_question, validate_user_response, set_workflow_context
 
 class MaleSpecialistResponse(dspy.Signature):
@@ -75,20 +70,19 @@ async def male_specialist_activity(input_data: MaleSpecialistInput) -> MaleSpeci
         agent_type="MALE_SPECIALIST"
     )
     
-    # Create React module with male specialist tools + user interaction
+    # Get tools from MCP servers for this agent type
+    static_tools = [ask_user_question, validate_user_response]
+    
+    all_tools = await mcp_manager.get_tools_for_agent(
+        AgentType.MALE_SPECIALIST,
+        include_static_tools=static_tools
+    )
+    activity.logger.info(f"Male specialist using {len(all_tools)} tools from MCP")
+    
+    # Create React module with dynamically loaded tools
     male_react = dspy.ReAct(
         MaleSpecialistResponse,
-        tools=[
-            list_male_shirts_inventory,  # List available male shirts
-            get_male_product_details,  # Get specific product details
-            get_male_measurement_requirements,  # Get measurement requirements
-            validate_male_measurements,  # Validate measurements
-            record_male_measurements,  # Save measurements to file
-            retrieve_male_measurements,  # Retrieve saved measurements
-            recommend_size_male,  # Recommend size based on measurements
-            ask_user_question,  # Ask clarifying questions to customer
-            validate_user_response  # Validate customer responses
-        ]
+        tools=all_tools
     )
     
     # Convert customer_profile dict to string for ReAct compatibility

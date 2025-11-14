@@ -7,9 +7,12 @@ from temporalio import activity
 
 from activities.utils import capture_llm_history
 from data.agent_models import OrderSpecialistInput, OrderSpecialistOutput
+from data.base_models import AgentType
 
-# Import tools
-from activities.tools.order_tools import search_orders, check_order_status, modify_order, get_order_history, calculate_shipping_cost
+# Import MCP manager for dynamic tool loading
+from mcp_integration import mcp_manager
+
+# Import static tools (user interaction tools)
 from activities.tools.user_interaction_tools import ask_user_question, validate_user_response, set_workflow_context
 
 class OrderSpecialistResponse(dspy.Signature):
@@ -45,7 +48,7 @@ _GLOBAL_LM = dspy.LM("gemini/gemini-2.5-flash")
 
 @activity.defn
 async def order_specialist_activity(input_data: OrderSpecialistInput) -> OrderSpecialistOutput:
-    """Order specialist agent using DSPy.React with order tools"""
+    """Order specialist agent using DSPy.React with MCP tools"""
     dspy.context(lm=_GLOBAL_LM)
     
     # Set workflow context for user interaction tools
@@ -55,18 +58,21 @@ async def order_specialist_activity(input_data: OrderSpecialistInput) -> OrderSp
         agent_type="ORDER_SPECIALIST"
     )
     
-    # Create React module with order tools + user interaction - agents will autonomously use tools as needed
+    # Get tools from MCP servers for this agent type
+    # Include user interaction tools
+    static_tools = [ask_user_question, validate_user_response]
+    
+    # Get MCP tools dynamically
+    all_tools = await mcp_manager.get_tools_for_agent(
+        AgentType.ORDER_SPECIALIST,
+        include_static_tools=static_tools
+    )
+    activity.logger.info(f"Order specialist using {len(all_tools)} tools from MCP")
+    
+    # Create React module with dynamically loaded tools
     order_react = dspy.ReAct(
         OrderSpecialistResponse,
-        tools=[
-            search_orders, 
-            check_order_status, 
-            modify_order, 
-            get_order_history, 
-            calculate_shipping_cost,
-            ask_user_question,  # Allow agent to ask clarifying questions
-            validate_user_response
-        ]
+        tools=all_tools
     )
     
     # Convert customer_profile dict to string for ReAct compatibility

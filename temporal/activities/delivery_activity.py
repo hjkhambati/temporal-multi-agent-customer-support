@@ -7,17 +7,12 @@ from temporalio import activity
 
 from activities.utils import capture_llm_history
 from data.agent_models import DeliveryInput, DeliveryOutput
+from data.base_models import AgentType
 
-# Import tools
-from activities.tools.delivery_tools import (
-    get_delivery_options,
-    validate_delivery_address,
-    calculate_delivery_date,
-    schedule_purchase_delivery,
-    track_delivery,
-    update_delivery_address,
-    get_delivery_status
-)
+# Import MCP manager for dynamic tool loading
+from mcp_integration import mcp_manager
+
+# Import static tools (user interaction tools)
 from activities.tools.user_interaction_tools import ask_user_question, validate_user_response, set_workflow_context
 
 class DeliveryResponse(dspy.Signature):
@@ -73,20 +68,19 @@ async def delivery_activity(input_data: DeliveryInput) -> DeliveryOutput:
         agent_type="DELIVERY"
     )
     
-    # Create React module with delivery tools + user interaction
+    # Get tools from MCP servers for this agent type
+    static_tools = [ask_user_question, validate_user_response]
+    
+    all_tools = await mcp_manager.get_tools_for_agent(
+        AgentType.DELIVERY,
+        include_static_tools=static_tools
+    )
+    activity.logger.info(f"Delivery agent using {len(all_tools)} tools from MCP")
+    
+    # Create React module with dynamically loaded tools
     delivery_react = dspy.ReAct(
         DeliveryResponse,
-        tools=[
-            get_delivery_options,
-            validate_delivery_address,
-            calculate_delivery_date,
-            schedule_purchase_delivery,
-            track_delivery,
-            update_delivery_address,
-            get_delivery_status,
-            ask_user_question,  # Allow agent to ask clarifying questions
-            validate_user_response
-        ]
+        tools=all_tools
     )
     
     # Convert customer_profile dict to string for ReAct compatibility

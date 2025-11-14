@@ -7,16 +7,12 @@ from temporalio import activity
 
 from activities.utils import capture_llm_history
 from data.agent_models import AlterationInput, AlterationOutput
+from data.base_models import AgentType
 
-# Import tools
-from activities.tools.alteration_tools import (
-    get_available_alterations,
-    check_alteration_feasibility,
-    calculate_alteration_cost,
-    request_alteration,
-    get_alteration_status,
-    cancel_alteration
-)
+# Import MCP manager for dynamic tool loading
+from mcp_integration import mcp_manager
+
+# Import static tools (user interaction tools)
 from activities.tools.user_interaction_tools import ask_user_question, validate_user_response, set_workflow_context
 
 class AlterationResponse(dspy.Signature):
@@ -75,19 +71,19 @@ async def alteration_activity(input_data: AlterationInput) -> AlterationOutput:
         agent_type="ALTERATION"
     )
     
-    # Create React module with alteration tools + user interaction
+    # Get tools from MCP servers for this agent type
+    static_tools = [ask_user_question, validate_user_response]
+    
+    all_tools = await mcp_manager.get_tools_for_agent(
+        AgentType.ALTERATION,
+        include_static_tools=static_tools
+    )
+    activity.logger.info(f"Alteration agent using {len(all_tools)} tools from MCP")
+    
+    # Create React module with dynamically loaded tools
     alteration_react = dspy.ReAct(
         AlterationResponse,
-        tools=[
-            get_available_alterations,
-            check_alteration_feasibility,
-            calculate_alteration_cost,
-            request_alteration,
-            get_alteration_status,
-            cancel_alteration,
-            ask_user_question,  # Allow agent to ask clarifying questions
-            validate_user_response
-        ]
+        tools=all_tools
     )
     
     # Convert customer_profile dict to string for ReAct compatibility
