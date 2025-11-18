@@ -1,0 +1,81 @@
+# MCP Server Configuration
+# Defines MCP servers and their agent mappings
+
+# Base URL template for MCP servers
+base_url: "http://localhost:{port}"
+
+# MCP Server Definitions
+servers:
+  - name: alteration_server
+    port: 8001
+    description: "Alteration Server"
+  
+  - name: billing_server
+    port: 8002
+    description: "Billing Server"
+  
+  - name: delivery_server
+    port: 8003
+    description: "Delivery Server"
+  
+  - name: general_server
+    port: 8004
+    description: "General Support Server"
+  
+  - name: male_specialist_server
+    port: 8005
+    description: "Male Specialist Server"
+  
+  - name: female_specialist_server
+    port: 8006
+    description: "Female Specialist Server"
+  
+  - name: order_server
+    port: 8007
+    description: "Order Server"
+  
+  - name: refund_server
+    port: 8008
+    description: "Refund Server"
+  
+  - name: technical_server
+    port: 8009
+    description: "Technical Support Server"
+
+# Agent to Server Mapping
+# Maps each agent type to the MCP servers it should use for tool discovery
+agent_server_mapping:
+  ORDER_SPECIALIST:
+    - order_server
+    - billing_server
+  
+  TECHNICAL_SPECIALIST:
+    - technical_server
+    - general_server
+  
+  REFUND_SPECIALIST:
+    - refund_server
+    - order_server
+  
+  GENERAL_SUPPORT:
+    - general_server
+  
+  MALE_SPECIALIST:
+    - male_specialist_server
+    - order_server
+  
+  FEMALE_SPECIALIST:
+    - female_specialist_server
+    - order_server
+  
+  BILLING:
+    - billing_server
+    - order_server
+  
+  DELIVERY:
+    - delivery_server
+    - order_server
+  
+  ALTERATION:
+    - alteration_server
+    - order_server

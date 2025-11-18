@@ -1,44 +1,45 @@
-"""MCP server configuration and agent-to-server mapping."""
+"""MCP server configuration loader from YAML file."""
 
 from typing import Dict, List, Tuple
 import sys
 import os
+import yaml
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data.base_models import AgentType
 
-# MCP Server Configuration
+# Load configuration from YAML file
+_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "mcp_config.yaml")
+
+def _load_config() -> dict:
+    """Load MCP configuration from YAML file."""
+    try:
+        with open(_CONFIG_PATH, 'r') as f:
+            return yaml.safe_load(f)
+    except Exception as e:
+        raise RuntimeError(f"Failed to load MCP configuration from {_CONFIG_PATH}: {e}")
+
+# Load configuration
+_config = _load_config()
+
+# Parse MCP Server Configuration
 # Format: (server_name, port, description)
 MCP_SERVERS: List[Tuple[str, int, str]] = [
-    ("alteration_server", 8001, "Alteration Server"),
-    ("billing_server", 8002, "Billing Server"),
-    ("delivery_server", 8003, "Delivery Server"),
-    ("general_server", 8004, "General Support Server"),
-    ("male_specialist_server", 8005, "Male Specialist Server"),
-    ("female_specialist_server", 8006, "Female Specialist Server"),
-    ("order_server", 8007, "Order Server"),
-    ("refund_server", 8008, "Refund Server"),
-    ("technical_server", 8009, "Technical Support Server"),
+    (server['name'], server['port'], server['description'])
+    for server in _config['servers']
 ]
+
+# MCP Server Base URL Template
+MCP_BASE_URL = _config['base_url']
 
 # Agent Type to MCP Server Mapping
 # Maps each agent to the MCP servers it should use for tool discovery
 AGENT_SERVER_MAPPING: Dict[AgentType, List[str]] = {
-    AgentType.ORDER_SPECIALIST: ["order_server", "billing_server"],
-    AgentType.TECHNICAL_SPECIALIST: ["technical_server", "general_server"],
-    AgentType.REFUND_SPECIALIST: ["refund_server", "order_server"],
-    AgentType.GENERAL_SUPPORT: ["general_server"],
-    AgentType.MALE_SPECIALIST: ["male_specialist_server", "order_server"],
-    AgentType.FEMALE_SPECIALIST: ["female_specialist_server", "order_server"],
-    AgentType.BILLING: ["billing_server", "order_server"],
-    AgentType.DELIVERY: ["delivery_server", "order_server"],
-    AgentType.ALTERATION: ["alteration_server", "order_server"],
+    AgentType[agent_type]: servers
+    for agent_type, servers in _config['agent_server_mapping'].items()
 }
-
-# MCP Server Base URL Template
-MCP_BASE_URL = "http://localhost:{port}"
 
 
 def get_server_url(server_name: str) -> str:
