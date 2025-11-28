@@ -282,6 +282,8 @@ Agent: "Your order shipped yesterday. Tracking: TRK-789"
 - **[Google Gemini](https://ai.google.dev/)** - LLM capabilities
 - **[Streamlit](https://streamlit.io)** - Rapid UI development
 
+- **[Deepeval-testing](https://gemini.google.com/share/6dd17a6d0a22)
+
 ---
 
 **🚀 Ready to revolutionize customer support? Clone and run in 4 terminals!**
